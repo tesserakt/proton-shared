@@ -1,4 +1,5 @@
 import { c } from 'ttag';
+import { KTInfo } from 'key-transparency-web-client';
 import { OpenPGPKey } from 'pmcrypto';
 import { extractDraftMIMEType, extractScheme, extractSign } from '../api/helpers/mailSettings';
 import { CONTACT_MIME_TYPES, PGP_SCHEMES } from '../constants';
@@ -43,6 +44,7 @@ export interface EncryptionPreferences {
     warnings?: string[];
     error?: EncryptionPreferencesError;
     emailAddressWarnings?: string[];
+    publicKeyKTInfo?: KTInfo;
 }
 
 const extractEncryptionPreferencesOwnAddress = (
@@ -114,7 +116,10 @@ const extractEncryptionPreferencesOwnAddress = (
     return { ...result, sendKey: publicKey, isSendKeyPinned: false, warnings };
 };
 
-const extractEncryptionPreferencesInternal = (publicKeyModel: PublicKeyModel): EncryptionPreferences => {
+const extractEncryptionPreferencesInternal = (
+    publicKeyModel: PublicKeyModel,
+    ktConfig?: KTInfo
+): EncryptionPreferences => {
     const {
         emailAddress,
         publicKeys: { apiKeys, pinnedKeys },
@@ -141,6 +146,7 @@ const extractEncryptionPreferencesInternal = (publicKeyModel: PublicKeyModel): E
         isContact,
         isContactSignatureVerified,
         emailAddressWarnings,
+        publicKeyKTInfo: ktConfig,
     };
     if (emailAddressErrors?.length) {
         const errorString = emailAddressErrors[0];
@@ -351,7 +357,8 @@ const extractEncryptionPreferencesExternalWithoutWKDKeys = (publicKeyModel: Publ
 const extractEncryptionPreferences = (
     model: ContactPublicKeyModel,
     mailSettings: MailSettings,
-    selfSend?: SelfSend
+    selfSend?: SelfSend,
+    ktConfig?: KTInfo
 ): EncryptionPreferences => {
     // Determine encrypt and sign flags, plus PGP scheme and MIME type.
     // Take mail settings into account if they are present
@@ -373,7 +380,7 @@ const extractEncryptionPreferences = (
     }
     // case of internal user
     if (model.isPGPInternal) {
-        return extractEncryptionPreferencesInternal(publicKeyModel);
+        return extractEncryptionPreferencesInternal(publicKeyModel, ktConfig);
     }
     // case of external user with WKD keys
     if (model.isPGPExternalWithWKDKeys) {
