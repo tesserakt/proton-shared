@@ -1,6 +1,7 @@
+import { KTInfo } from 'key-transparency-web-client';
 import { OpenPGPKey } from 'pmcrypto';
 import { MIME_TYPES, PACKAGE_TYPE } from '../../constants';
-import { EncryptionPreferencesFailure } from '../../mail/encryptionPreferences';
+import { EncryptionPreferencesError } from '../../mail/encryptionPreferences';
 import { SimpleMap } from '../utils';
 
 export interface SendPreferences {
@@ -13,7 +14,8 @@ export interface SendPreferences {
     hasApiKeys: boolean;
     hasPinnedKeys: boolean;
     warnings?: string[];
-    failure?: EncryptionPreferencesFailure;
+    error?: EncryptionPreferencesError;
+    publicKeyKTInfo?: KTInfo;
 }
 
 export interface Packets {
