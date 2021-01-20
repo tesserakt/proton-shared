@@ -9,3 +9,8 @@ export interface SignedKeyListItem {
     Fingerprint: string;
     SHA256Fingerprints: string[];
 }
+
+export interface SignedKeyListInfo extends SignedKeyList {
+    MinEpochID: number | null;
+    MaxEpochID: number | null;
+}

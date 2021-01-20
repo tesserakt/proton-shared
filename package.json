@@ -48,6 +48,7 @@
         "ical.js": "github:ProtonMail/ical.js.git#semver:~1.3.1",
         "is-valid-domain": "0.0.14",
         "jsbi": "^3.1.2",
+        "key-transparency-web-client": "github:ProtonMail/key-transparency-web-client#main",
         "lodash": "^4.17.11",
         "pm-srp": "github:ProtonMail/pm-srp.git#semver:^1.0.0",
         "pmcrypto": "github:ProtonMail/pmcrypto.git#semver:~6.3.0",

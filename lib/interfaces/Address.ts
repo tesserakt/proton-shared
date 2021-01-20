@@ -1,6 +1,6 @@
 import { ADDRESS_TYPE } from '../constants';
 import { Key } from './Key';
-import { SignedKeyList } from './SignedKeyList';
+import { SignedKeyList, SignedKeyListInfo } from './SignedKeyList';
 
 export interface Address {
     DisplayName: string;
@@ -15,6 +15,7 @@ export interface Address {
     Receive: number;
     Send: number;
     Signature: string;
+    SignedKeyListInfo: SignedKeyListInfo;
     Status: number;
     Type: ADDRESS_TYPE;
 }
@@ -22,10 +23,7 @@ export interface Address {
 export interface AddressKeyPayload {
     AddressID: string;
     PrivateKey: string;
-    SignedKeyList: {
-        Data: string;
-        Signature: string;
-    };
+    SignedKeyList: SignedKeyList;
 }
 
 export interface AddressKeyPayloadV2 {
