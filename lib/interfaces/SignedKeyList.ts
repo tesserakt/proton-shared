@@ -11,6 +11,6 @@ export interface SignedKeyListItem {
 }
 
 export interface SignedKeyListEpochs extends SignedKeyList {
-    MinEpochID: number | null;
-    MaxEpochID: number | null;
+    MinEpochID?: number | null;
+    MaxEpochID?: number | null;
 }

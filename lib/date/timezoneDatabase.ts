@@ -266,7 +266,6 @@ export const MANUAL_TIMEZONE_LINKS: { [key: string]: string } = {
     hawaiian: 'Pacific/Honolulu',
     'hawaiian standard time': 'Pacific/Honolulu',
     'helsinki, riga, tallinn': 'Europe/Helsinki',
-    'helsinki, kyiv, riga, sofia, tallinn, vilnius': 'Europe/Helsinki',
     'hobart, tasmania': 'Australia/Hobart',
     'hong kong': 'Asia/Hong_Kong',
     hovd: 'Asia/Hovd',

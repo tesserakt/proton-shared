@@ -1,5 +1,14 @@
 import { OpenPGPKey } from 'pmcrypto';
-import { Api, User as tsUser, Address as tsAddress, DecryptedKey, Address, ActiveKey } from '../../interfaces';
+import { verifySelfAuditResult, KT_STATUS } from 'key-transparency-web-client';
+import {
+    Api,
+    User as tsUser,
+    Address as tsAddress,
+    DecryptedKey,
+    Address,
+    ActiveKey,
+    KeyTransparencyState,
+} from '../../interfaces';
 import { KeyReactivationData, KeyReactivationRecord, OnKeyReactivationCallback } from './interface';
 import { getPrimaryKey } from '../getPrimaryKey';
 import { USER_KEY_USERID } from '../userKeys';
@@ -21,6 +30,7 @@ interface ReactivateUserKeysArguments {
     onReactivation: OnKeyReactivationCallback;
     keysToReactivate: KeyReactivationData[];
     keyPassword: string;
+    keyTransparencyState?: KeyTransparencyState;
 }
 
 export const reactivateUserKeys = async ({
@@ -32,6 +42,7 @@ export const reactivateUserKeys = async ({
     keysToReactivate,
     onReactivation,
     keyPassword,
+    keyTransparencyState,
 }: ReactivateUserKeysArguments) => {
     const keyReactivationDataMap = addressRecordsInV2Format.reduce<SimpleMap<KeyReactivationData>>((acc, record) => {
         record.keysToReactivate.forEach((keyData) => {
@@ -45,6 +56,7 @@ export const reactivateUserKeys = async ({
     let mutableActiveKeys = activeKeys;
     let mutableAddresses = addresses;
 
+    const ktMessageObjectsMap = new Map();
     for (const keyToReactivate of keysToReactivate) {
         const { id, Key, privateKey: decryptedPrivateKey } = keyToReactivate;
         const { ID } = Key;
@@ -75,16 +87,38 @@ export const reactivateUserKeys = async ({
                 keyPassword,
             });
             const addressReactivationPayload = await getAddressReactivationPayload(reactivatedAddressKeysResult);
-            mutableAddresses = mutableAddresses.map((address) => {
-                const updatedSignedKeyList = addressReactivationPayload.SignedKeyLists[address.ID];
-                if (updatedSignedKeyList) {
-                    return {
-                        ...address,
-                        SignedKeyList: updatedSignedKeyList,
-                    };
-                }
-                return address;
-            });
+            mutableAddresses = await Promise.all(
+                mutableAddresses.map(async (address) => {
+                    const updatedSignedKeyList = addressReactivationPayload.SignedKeyLists[address.ID];
+                    if (updatedSignedKeyList) {
+                        const ktMessageObject = {
+                            message: '',
+                            addressID: address.ID,
+                        };
+                        if (keyTransparencyState) {
+                            const ktInfo = await verifySelfAuditResult(
+                                address,
+                                updatedSignedKeyList,
+                                keyTransparencyState.ktSelfAuditResult,
+                                keyTransparencyState.lastSelfAudit,
+                                keyTransparencyState.isRunning,
+                                api
+                            );
+
+                            if (ktInfo.code === KT_STATUS.KT_FAILED) {
+                                throw new Error(`Cannot reactivate key: ${ktInfo.error}`);
+                            }
+                            ktMessageObject.message = ktInfo.message;
+                        }
+                        ktMessageObjectsMap.set(address.ID, ktMessageObject);
+                        return {
+                            ...address,
+                            SignedKeyList: updatedSignedKeyList,
+                        };
+                    }
+                    return address;
+                })
+            );
             await api(
                 reactivateUserKeyRouteV2({
                     ID,
@@ -123,6 +157,7 @@ export const reactivateUserKeys = async ({
     return {
         userKeys: mutableActiveKeys,
         addresses: mutableAddresses,
+        ktMessageObjectsMap,
     };
 };
 
@@ -133,6 +168,7 @@ interface ReactivateAddressKeysV2Arguments {
     userKey: OpenPGPKey;
     onReactivation: OnKeyReactivationCallback;
     keysToReactivate: KeyReactivationData[];
+    keyTransparencyState?: KeyTransparencyState;
 }
 
 export const reactivateAddressKeysV2 = async ({
@@ -142,9 +178,14 @@ export const reactivateAddressKeysV2 = async ({
     keysToReactivate,
     onReactivation,
     userKey,
+    keyTransparencyState,
 }: ReactivateAddressKeysV2Arguments) => {
     let mutableActiveKeys = activeKeys;
 
+    const ktMessageObject = {
+        message: '',
+        addressID: address.ID,
+    };
     for (const keyToReactivate of keysToReactivate) {
         const { id, Key, privateKey: decryptedPrivateKey } = keyToReactivate;
         const { ID, Flags } = Key;
@@ -168,11 +209,29 @@ export const reactivateAddressKeysV2 = async ({
                 flags: getReactivatedKeyFlag(Flags),
             });
             const updatedActiveKeys = [...mutableActiveKeys, newActiveKey];
+            const SignedKeyList = await getSignedKeyList(updatedActiveKeys);
+
+            if (keyTransparencyState) {
+                const ktInfo = await verifySelfAuditResult(
+                    address,
+                    SignedKeyList,
+                    keyTransparencyState.ktSelfAuditResult,
+                    keyTransparencyState.lastSelfAudit,
+                    keyTransparencyState.isRunning,
+                    api
+                );
+
+                if (ktInfo.code === KT_STATUS.KT_FAILED) {
+                    throw new Error(`Cannot reactivate key: ${ktInfo.error}`);
+                }
+                ktMessageObject.message = ktInfo.message;
+            }
+
             await api(
                 reactiveLegacyAddressKeyRouteV2({
                     ID,
                     PrivateKey: privateKeyArmored,
-                    SignedKeyList: await getSignedKeyList(updatedActiveKeys),
+                    SignedKeyList,
                     Token: encryptedToken,
                     Signature: signature,
                 })
@@ -186,7 +245,7 @@ export const reactivateAddressKeysV2 = async ({
         }
     }
 
-    return mutableActiveKeys;
+    return [mutableActiveKeys, ktMessageObject];
 };
 
 export interface ReactivateKeysProcessV2Arguments {
@@ -197,6 +256,7 @@ export interface ReactivateKeysProcessV2Arguments {
     userKeys: DecryptedKey[];
     keyReactivationRecords: KeyReactivationRecord[];
     onReactivation: OnKeyReactivationCallback;
+    keyTransparencyState?: KeyTransparencyState;
 }
 
 const reactivateKeysProcessV2 = async ({
@@ -207,6 +267,7 @@ const reactivateKeysProcessV2 = async ({
     keyPassword,
     addresses: oldAddresses,
     userKeys: oldUserKeys,
+    keyTransparencyState,
 }: ReactivateKeysProcessV2Arguments) => {
     const {
         userRecord,
@@ -254,6 +315,7 @@ const reactivateKeysProcessV2 = async ({
 
     let userKeys = oldUserKeys;
     let addresses = oldAddresses;
+    const ktMessageObjectsMap = new Map();
     if (userRecord) {
         try {
             const activeUserKeys = await getActiveKeys(null, user.Keys, userKeys);
@@ -269,6 +331,9 @@ const reactivateKeysProcessV2 = async ({
             });
             userKeys = userKeysReactivationResult.userKeys;
             addresses = userKeysReactivationResult.addresses;
+            userKeysReactivationResult.ktMessageObjectsMap.forEach((value, key) => {
+                ktMessageObjectsMap.set(key, value);
+            });
         } catch (e) {
             userRecord.keysToReactivate.forEach(({ id }) => onReactivation(id, e));
             addressRecordsInV2Format.forEach(({ keysToReactivate }) => {
@@ -296,18 +361,24 @@ const reactivateKeysProcessV2 = async ({
 
             const activeAddressKeys = await getActiveKeys(address.SignedKeyList, address.Keys, addressKeys);
 
-            await reactivateAddressKeysV2({
+            const [, ktMessageObject] = await reactivateAddressKeysV2({
                 api,
                 address,
                 activeKeys: activeAddressKeys,
                 userKey: primaryPrivateUserKey,
                 onReactivation,
                 keysToReactivate,
+                keyTransparencyState,
             });
+            if (Object.getOwnPropertyNames(ktMessageObject).includes('message')) {
+                ktMessageObjectsMap.set(address.ID, ktMessageObject);
+            }
         } catch (e) {
             keysToReactivate.forEach(({ id }) => onReactivation(id, e));
         }
     }
+
+    return Array.from(ktMessageObjectsMap.values());
 };
 
 export default reactivateKeysProcessV2;
