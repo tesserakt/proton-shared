@@ -104,7 +104,7 @@ const importKeysProcessLegacy = async ({
         onReactivation: onImport,
     });
 
-    return ktMessageObjectFromReactivate.message === '' ? ktMessageObject : ktMessageObjectFromReactivate;
+    return !ktMessageObjectFromReactivate ? ktMessageObject : ktMessageObjectFromReactivate;
 };
 
 export default importKeysProcessLegacy;
