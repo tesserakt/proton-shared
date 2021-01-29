@@ -1,5 +1,5 @@
 import { OpenPGPKey } from 'pmcrypto';
-import { verifySelfAuditResult, KT_STATUS } from 'key-transparency-web-client';
+import { verifySelfAuditResult, KTInfoToLS } from 'key-transparency-web-client';
 import {
     Api,
     User as tsUser,
@@ -91,12 +91,9 @@ export const reactivateUserKeys = async ({
                 mutableAddresses.map(async (address) => {
                     const updatedSignedKeyList = addressReactivationPayload.SignedKeyLists[address.ID];
                     if (updatedSignedKeyList) {
-                        const ktMessageObject = {
-                            message: '',
-                            addressID: address.ID,
-                        };
+                        let ktMessageObject: KTInfoToLS | undefined;
                         if (keyTransparencyState) {
-                            const ktInfo = await verifySelfAuditResult(
+                            ktMessageObject = await verifySelfAuditResult(
                                 address,
                                 updatedSignedKeyList,
                                 keyTransparencyState.ktSelfAuditResult,
@@ -104,13 +101,10 @@ export const reactivateUserKeys = async ({
                                 keyTransparencyState.isRunning,
                                 api
                             );
-
-                            if (ktInfo.code === KT_STATUS.KT_FAILED) {
-                                throw new Error(`Cannot reactivate key: ${ktInfo.error}`);
-                            }
-                            ktMessageObject.message = ktInfo.message;
                         }
-                        ktMessageObjectsMap.set(address.ID, ktMessageObject);
+                        if (ktMessageObject) {
+                            ktMessageObjectsMap.set(ktMessageObject.addressID, ktMessageObject);
+                        }
                         return {
                             ...address,
                             SignedKeyList: updatedSignedKeyList,
@@ -182,10 +176,7 @@ export const reactivateAddressKeysV2 = async ({
 }: ReactivateAddressKeysV2Arguments) => {
     let mutableActiveKeys = activeKeys;
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     for (const keyToReactivate of keysToReactivate) {
         const { id, Key, privateKey: decryptedPrivateKey } = keyToReactivate;
         const { ID, Flags } = Key;
@@ -212,7 +203,7 @@ export const reactivateAddressKeysV2 = async ({
             const SignedKeyList = await getSignedKeyList(updatedActiveKeys);
 
             if (keyTransparencyState) {
-                const ktInfo = await verifySelfAuditResult(
+                ktMessageObject = await verifySelfAuditResult(
                     address,
                     SignedKeyList,
                     keyTransparencyState.ktSelfAuditResult,
@@ -220,11 +211,6 @@ export const reactivateAddressKeysV2 = async ({
                     keyTransparencyState.isRunning,
                     api
                 );
-
-                if (ktInfo.code === KT_STATUS.KT_FAILED) {
-                    throw new Error(`Cannot reactivate key: ${ktInfo.error}`);
-                }
-                ktMessageObject.message = ktInfo.message;
             }
 
             await api(

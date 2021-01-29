@@ -1,4 +1,4 @@
-import { verifySelfAuditResult, KT_STATUS } from 'key-transparency-web-client';
+import { verifySelfAuditResult, KTInfoToLS } from 'key-transparency-web-client';
 import { KeyImportData, OnKeyImportCallback } from './interface';
 import { Address, Api, DecryptedKey, KeyTransparencyState } from '../../interfaces';
 import { reformatAddressKey } from '../addressKeys';
@@ -43,10 +43,7 @@ const importKeysProcessLegacy = async ({
 
     let mutableActiveKeys = activeKeys;
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     for (const keyImportRecord of keysToImport) {
         try {
             const { privateKey } = keyImportRecord;
@@ -65,7 +62,7 @@ const importKeysProcessLegacy = async ({
             const SignedKeyList = await getSignedKeyList(updatedActiveKeys);
 
             if (keyTransparencyState) {
-                const ktInfo = await verifySelfAuditResult(
+                ktMessageObject = await verifySelfAuditResult(
                     address,
                     SignedKeyList,
                     keyTransparencyState.ktSelfAuditResult,
@@ -73,11 +70,6 @@ const importKeysProcessLegacy = async ({
                     keyTransparencyState.isRunning,
                     api
                 );
-
-                if (ktInfo.code === KT_STATUS.KT_FAILED) {
-                    throw new Error(`Cannot import key: ${ktInfo.error}`);
-                }
-                ktMessageObject.message = ktInfo.message;
             }
 
             const { Key } = await api(

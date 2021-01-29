@@ -1,6 +1,6 @@
 import { computeKeyPassword, generateKeySalt } from 'pm-srp';
 import { decryptPrivateKey, OpenPGPKey } from 'pmcrypto';
-import { verifySelfAuditResult, KT_STATUS } from 'key-transparency-web-client';
+import { verifySelfAuditResult, KTInfoToLS } from 'key-transparency-web-client';
 
 import {
     Address as tsAddress,
@@ -188,14 +188,11 @@ export const upgradeV2KeysV2 = async ({
         })
     );
 
-    const ktMessageObjects: { message: string; addressID: string }[] = await Promise.all(
+    const ktMessageObjects = await Promise.all(
         reformattedAddressesKeys.map(async ({ address, signedKeyList }) => {
-            const ktMessageObject = {
-                message: '',
-                addressID: address.ID,
-            };
+            let ktMessageObject: KTInfoToLS | undefined;
             if (keyTransparencyState) {
-                const ktInfo = await verifySelfAuditResult(
+                ktMessageObject = await verifySelfAuditResult(
                     address,
                     signedKeyList,
                     keyTransparencyState.ktSelfAuditResult,
@@ -203,11 +200,6 @@ export const upgradeV2KeysV2 = async ({
                     keyTransparencyState.isRunning,
                     api
                 );
-
-                if (ktInfo.code === KT_STATUS.KT_FAILED) {
-                    throw new Error(`Cannot import key: ${ktInfo.error}`);
-                }
-                ktMessageObject.message = ktInfo.message;
             }
             return ktMessageObject;
         })

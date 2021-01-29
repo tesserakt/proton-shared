@@ -1,4 +1,4 @@
-import { verifySelfAuditResult, KT_STATUS } from 'key-transparency-web-client';
+import { verifySelfAuditResult, KTInfoToLS } from 'key-transparency-web-client';
 import { removeKeyRoute, setKeyFlagsRoute, setKeyPrimaryRoute } from '../api/keys';
 import { Address, Api, DecryptedKey, KeyTransparencyState } from '../interfaces';
 import { getSignedKeyList } from './signedKeyList';
@@ -26,12 +26,9 @@ export const setPrimaryAddressKey = async (
         .sort((a, b) => b.primary - a.primary);
     const signedKeyList = await getSignedKeyList(updatedActiveKeys);
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     if (keyTransparencyState) {
-        const ktInfo = await verifySelfAuditResult(
+        ktMessageObject = await verifySelfAuditResult(
             address,
             signedKeyList,
             keyTransparencyState.ktSelfAuditResult,
@@ -39,11 +36,6 @@ export const setPrimaryAddressKey = async (
             keyTransparencyState.isRunning,
             api
         );
-
-        if (ktInfo.code === KT_STATUS.KT_FAILED) {
-            throw new Error(`Cannot set primary key: ${ktInfo.error}`);
-        }
-        ktMessageObject.message = ktInfo.message;
     }
 
     await api(setKeyPrimaryRoute({ ID, SignedKeyList: signedKeyList }));
@@ -66,12 +58,9 @@ export const deleteAddressKey = async (
     const updatedActiveKeys = activeKeys.filter(({ ID: otherID }) => ID !== otherID);
     const signedKeyList = await getSignedKeyList(updatedActiveKeys);
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     if (keyTransparencyState) {
-        const ktInfo = await verifySelfAuditResult(
+        ktMessageObject = await verifySelfAuditResult(
             address,
             signedKeyList,
             keyTransparencyState.ktSelfAuditResult,
@@ -79,11 +68,6 @@ export const deleteAddressKey = async (
             keyTransparencyState.isRunning,
             api
         );
-
-        if (ktInfo.code === KT_STATUS.KT_FAILED) {
-            throw new Error(`Cannot delete key: ${ktInfo.error}`);
-        }
-        ktMessageObject.message = ktInfo.message;
     }
 
     await api(removeKeyRoute({ ID, SignedKeyList: signedKeyList }));
@@ -111,12 +95,9 @@ export const setAddressKeyFlags = async (
     });
     const signedKeyList = await getSignedKeyList(updatedActiveKeys);
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     if (keyTransparencyState) {
-        const ktInfo = await verifySelfAuditResult(
+        ktMessageObject = await verifySelfAuditResult(
             address,
             signedKeyList,
             keyTransparencyState.ktSelfAuditResult,
@@ -124,11 +105,6 @@ export const setAddressKeyFlags = async (
             keyTransparencyState.isRunning,
             api
         );
-
-        if (ktInfo.code === KT_STATUS.KT_FAILED) {
-            throw new Error(`Cannot change flag: ${ktInfo.error}`);
-        }
-        ktMessageObject.message = ktInfo.message;
     }
 
     await api(setKeyFlagsRoute({ ID, Flags: flags, SignedKeyList: signedKeyList }));

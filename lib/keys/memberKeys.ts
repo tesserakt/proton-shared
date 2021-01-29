@@ -1,5 +1,5 @@
 import { decryptPrivateKey, encryptPrivateKey, OpenPGPKey } from 'pmcrypto';
-import { verifySelfAuditResult, KT_STATUS } from 'key-transparency-web-client';
+import { verifySelfAuditResult, KTInfoToLS } from 'key-transparency-web-client';
 import {
     EncryptionConfig,
     Address as tsAddress,
@@ -64,12 +64,9 @@ export const setupMemberKeyLegacy = async ({
     const updatedActiveKeys = [newActiveKey];
     const SignedKeyList = await getSignedKeyList(updatedActiveKeys);
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     if (keyTransparencyState) {
-        const ktInfo = await verifySelfAuditResult(
+        ktMessageObject = await verifySelfAuditResult(
             address,
             SignedKeyList,
             keyTransparencyState.ktSelfAuditResult,
@@ -77,11 +74,6 @@ export const setupMemberKeyLegacy = async ({
             keyTransparencyState.isRunning,
             api
         );
-
-        if (ktInfo.code === KT_STATUS.KT_FAILED) {
-            throw new Error(`Cannot import key: ${ktInfo.error}`);
-        }
-        ktMessageObject.message = ktInfo.message;
     }
 
     const PrimaryKey = {
@@ -155,12 +147,9 @@ export const setupMemberKeyV2 = async ({
     const updatedActiveKeys = [newActiveKey];
     const SignedKeyList = await getSignedKeyList(updatedActiveKeys);
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     if (keyTransparencyState) {
-        const ktInfo = await verifySelfAuditResult(
+        ktMessageObject = await verifySelfAuditResult(
             address,
             SignedKeyList,
             keyTransparencyState.ktSelfAuditResult,
@@ -168,11 +157,6 @@ export const setupMemberKeyV2 = async ({
             keyTransparencyState.isRunning,
             api
         );
-
-        if (ktInfo.code === KT_STATUS.KT_FAILED) {
-            throw new Error(`Cannot import key: ${ktInfo.error}`);
-        }
-        ktMessageObject.message = ktInfo.message;
     }
 
     const {
@@ -261,12 +245,9 @@ export const createMemberAddressKeysLegacy = async ({
     const updatedActiveKeys = [...activeKeys, newActiveKey];
     const SignedKeyList = await getSignedKeyList(updatedActiveKeys);
 
-    const ktMessageObject = {
-        message: '',
-        addressID: memberAddress.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     if (keyTransparencyState) {
-        const ktInfo = await verifySelfAuditResult(
+        ktMessageObject = await verifySelfAuditResult(
             memberAddress,
             SignedKeyList,
             keyTransparencyState.ktSelfAuditResult,
@@ -274,11 +255,6 @@ export const createMemberAddressKeysLegacy = async ({
             keyTransparencyState.isRunning,
             api
         );
-
-        if (ktInfo.code === KT_STATUS.KT_FAILED) {
-            throw new Error(`Cannot import key: ${ktInfo.error}`);
-        }
-        ktMessageObject.message = ktInfo.message;
     }
 
     const { primary } = newActiveKey;
@@ -345,12 +321,9 @@ export const createMemberAddressKeysV2 = async ({
     const updatedActiveKeys = [...activeKeys, newActiveKey];
     const SignedKeyList = await getSignedKeyList(updatedActiveKeys);
 
-    const ktMessageObject = {
-        message: '',
-        addressID: memberAddress.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     if (keyTransparencyState) {
-        const ktInfo = await verifySelfAuditResult(
+        ktMessageObject = await verifySelfAuditResult(
             memberAddress,
             SignedKeyList,
             keyTransparencyState.ktSelfAuditResult,
@@ -358,11 +331,6 @@ export const createMemberAddressKeysV2 = async ({
             keyTransparencyState.isRunning,
             api
         );
-
-        if (ktInfo.code === KT_STATUS.KT_FAILED) {
-            throw new Error(`Cannot import key: ${ktInfo.error}`);
-        }
-        ktMessageObject.message = ktInfo.message;
     }
 
     const { primary } = newActiveKey;

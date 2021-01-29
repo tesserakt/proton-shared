@@ -1,4 +1,4 @@
-import { verifySelfAuditResult, KT_STATUS } from 'key-transparency-web-client';
+import { verifySelfAuditResult, KTInfoToLS } from 'key-transparency-web-client';
 import { Address, Api, DecryptedKey, Key, KeyTransparencyState } from '../../interfaces';
 import { reactivateKeyRoute } from '../../api/keys';
 import { getSignedKeyList } from '../signedKeyList';
@@ -32,10 +32,7 @@ export const reactivateKeysProcess = async ({
 
     let mutableActiveKeys = activeKeys;
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address?.ID || '',
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     for (const keyToReactivate of keysToReactivate) {
         const { id, Key, privateKey: decryptedPrivateKey } = keyToReactivate;
         const { ID } = Key;
@@ -59,7 +56,7 @@ export const reactivateKeysProcess = async ({
             const SignedKeyList = address ? await getSignedKeyList(updatedActiveKeys) : undefined;
 
             if (keyTransparencyState && address && SignedKeyList) {
-                const ktInfo = await verifySelfAuditResult(
+                ktMessageObject = await verifySelfAuditResult(
                     address,
                     SignedKeyList,
                     keyTransparencyState.ktSelfAuditResult,
@@ -67,11 +64,6 @@ export const reactivateKeysProcess = async ({
                     keyTransparencyState.isRunning,
                     api
                 );
-
-                if (ktInfo.code === KT_STATUS.KT_FAILED) {
-                    throw new Error(`Cannot reactivate key: ${ktInfo.error}`);
-                }
-                ktMessageObject.message = ktInfo.message;
             }
 
             await api(
@@ -90,9 +82,6 @@ export const reactivateKeysProcess = async ({
         }
     }
 
-    if (ktMessageObject.addressID === '') {
-        return;
-    }
     return ktMessageObject;
 };
 
@@ -111,7 +100,7 @@ const reactivateKeysProcessLegacy = async ({
     keyPassword,
     keyTransparencyState,
 }: ReactivateKeysProcessLegacyArguments) => {
-    const ktMessageObjects = [];
+    const ktMessageObjects: (KTInfoToLS | undefined)[] = [];
     for (const keyReactivationRecord of keyReactivationRecords) {
         const { user, address, keysToReactivate, keys } = keyReactivationRecord;
         try {
@@ -126,9 +115,7 @@ const reactivateKeysProcessLegacy = async ({
                 Keys,
                 keyTransparencyState,
             });
-            if (ktMessageObject) {
-                ktMessageObjects.push(ktMessageObject);
-            }
+            ktMessageObjects.push(ktMessageObject);
         } catch (e) {
             keysToReactivate.forEach(({ id }) => onReactivation(id, e));
         }

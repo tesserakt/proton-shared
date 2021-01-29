@@ -1,5 +1,5 @@
 import { OpenPGPKey } from 'pmcrypto';
-import { verifySelfAuditResult, KT_STATUS } from 'key-transparency-web-client';
+import { verifySelfAuditResult, KTInfoToLS } from 'key-transparency-web-client';
 import { ActiveKey, Address, Api, EncryptionConfig, KeyTransparencyState } from '../../interfaces';
 import { createAddressKeyRoute, createAddressKeyRouteV2 } from '../../api/keys';
 import { DEFAULT_ENCRYPTION_CONFIG, ENCRYPTION_CONFIGS } from '../../constants';
@@ -33,12 +33,9 @@ export const createAddressKeyLegacy = async ({
     const updatedActiveKeys = [...activeKeys, newActiveKey];
     const SignedKeyList = await getSignedKeyList(updatedActiveKeys);
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     if (keyTransparencyState) {
-        const ktInfo = await verifySelfAuditResult(
+        ktMessageObject = await verifySelfAuditResult(
             address,
             SignedKeyList,
             keyTransparencyState.ktSelfAuditResult,
@@ -46,11 +43,6 @@ export const createAddressKeyLegacy = async ({
             keyTransparencyState.isRunning,
             api
         );
-
-        if (ktInfo.code === KT_STATUS.KT_FAILED) {
-            throw new Error(`Cannot create key: ${ktInfo.error}`);
-        }
-        ktMessageObject.message = ktInfo.message;
     }
 
     const { Key } = await api(
@@ -93,12 +85,9 @@ export const createAddressKeyV2 = async ({
     const updatedActiveKeys = [...activeKeys, newActiveKey];
     const SignedKeyList = await getSignedKeyList(updatedActiveKeys);
 
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     if (keyTransparencyState) {
-        const ktInfo = await verifySelfAuditResult(
+        ktMessageObject = await verifySelfAuditResult(
             address,
             SignedKeyList,
             keyTransparencyState.ktSelfAuditResult,
@@ -106,11 +95,6 @@ export const createAddressKeyV2 = async ({
             keyTransparencyState.isRunning,
             api
         );
-
-        if (ktInfo.code === KT_STATUS.KT_FAILED) {
-            throw new Error(`Cannot create key: ${ktInfo.error}`);
-        }
-        ktMessageObject.message = ktInfo.message;
     }
 
     const { Key } = await api(

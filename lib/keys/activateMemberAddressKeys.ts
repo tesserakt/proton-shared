@@ -1,5 +1,5 @@
 import { encryptPrivateKey } from 'pmcrypto';
-import { verifySelfAuditResult, KT_STATUS } from 'key-transparency-web-client';
+import { verifySelfAuditResult, KTInfoToLS } from 'key-transparency-web-client';
 import { Address, Api, DecryptedKey, KeyTransparencyState, UserModel as tsUserModel } from '../interfaces';
 import { MEMBER_PRIVATE } from '../constants';
 import { getSignedKeyList } from './signedKeyList';
@@ -38,10 +38,7 @@ export const activateMemberAddressKeys = async ({
         throw new Error('Password required to generate keys');
     }
     const activeKeys = await getActiveKeys(address.SignedKeyList, address.Keys, addressKeys);
-    const ktMessageObject = {
-        message: '',
-        addressID: address.ID,
-    };
+    let ktMessageObject: KTInfoToLS | undefined;
     for (const addressKey of addressKeys) {
         const { ID, privateKey } = addressKey;
         const Key = address.Keys.find(({ ID: otherID }) => otherID === ID);
@@ -52,7 +49,7 @@ export const activateMemberAddressKeys = async ({
         const SignedKeyList = await getSignedKeyList(activeKeys);
 
         if (keyTransparencyState) {
-            const ktInfo = await verifySelfAuditResult(
+            ktMessageObject = await verifySelfAuditResult(
                 address,
                 SignedKeyList,
                 keyTransparencyState.ktSelfAuditResult,
@@ -60,11 +57,6 @@ export const activateMemberAddressKeys = async ({
                 keyTransparencyState.isRunning,
                 api
             );
-
-            if (ktInfo.code === KT_STATUS.KT_FAILED) {
-                throw new Error(`Cannot activate key: ${ktInfo.error}`);
-            }
-            ktMessageObject.message = ktInfo.message;
         }
 
         await api(activateKeyRoute({ ID, PrivateKey: encryptedPrivateKey, SignedKeyList }));
